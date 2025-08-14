@@ -41,36 +41,48 @@ app.get("/auth", (req, res) => {
 app.get("/callback", async (req, res) => {
   const { code, state } = req.query;
 
-  console.log("Received code:", code ? "present" : "missing");
+  if (!code) {
+    return res.status(400).send("Authorization code not found");
+  }
 
   try {
-    const result = await oauth2.getToken({
-      code,
-      redirect_uri: `https://${req.get("host")}/callback`,
-    });
+    // Use direct fetch instead of simple-oauth2
+    const tokenResponse = await fetch(
+      "https://github.com/login/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: process.env.GITHUB_CLIENT_ID,
+          client_secret: process.env.GITHUB_CLIENT_SECRET,
+          code,
+          redirect_uri: `https://${req.get("host")}/callback`,
+          grant_type: "authorization_code",
+        }),
+      }
+    );
 
-    console.log("Token result:", result.token); // Debug this
-    const token = result.token.access_token;
-    console.log("Extracted token:", token ? "present" : "missing"); // And this
+    const tokenData = await tokenResponse.json();
+    const token = tokenData.access_token;
 
-    // rest of your code...
+    console.log("Token received:", token ? "present" : "missing");
 
-    // Return success page that posts message to parent window
+    // Match the exact postMessage format that works
     res.send(`
-      <script>
-        if (window.opener) {
-          window.opener.postMessage(
-            'authorization:github:success:${JSON.stringify({
-              token,
-              provider: "github",
-            })}',
-            'https://legendsfc.vercel.app'
-          );
-          window.close();
-        }
-      </script>
-      <p>Authorization successful! This window should close automatically.</p>
-    `);
+        <script>
+          if (window.opener) {
+            window.opener.postMessage(
+              'authorization:github:success:{"token":"${token}","provider":"github"}',
+              '*'
+            );
+            window.close();
+          }
+        </script>
+        <p>Authorization successful! This window should close automatically.</p>
+      `);
   } catch (error) {
     console.error("OAuth error:", error);
     res.status(500).send("OAuth error occurred");
