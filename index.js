@@ -30,11 +30,10 @@ const oauth2 = new AuthorizationCode({
 // Auth endpoint - redirects to GitHub
 app.get("/auth", (req, res) => {
   const authorizationUri = oauth2.authorizeURL({
-    redirect_uri: `${req.protocol}://${req.get("host")}/callback`,
+    redirect_uri: `https://${req.get("host")}/callback`, // Force HTTPS
     scope: "repo,user",
     state: Math.random().toString(36).substring(7),
   });
-
   res.redirect(authorizationUri);
 });
 
