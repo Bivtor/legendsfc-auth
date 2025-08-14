@@ -41,17 +41,19 @@ app.get("/auth", (req, res) => {
 app.get("/callback", async (req, res) => {
   const { code, state } = req.query;
 
-  if (!code) {
-    return res.status(400).send("Authorization code not found");
-  }
+  console.log("Received code:", code ? "present" : "missing");
 
   try {
     const result = await oauth2.getToken({
       code,
-      redirect_uri: `${req.protocol}://${req.get("host")}/callback`,
+      redirect_uri: `https://${req.get("host")}/callback`,
     });
 
+    console.log("Token result:", result.token); // Debug this
     const token = result.token.access_token;
+    console.log("Extracted token:", token ? "present" : "missing"); // And this
+
+    // rest of your code...
 
     // Return success page that posts message to parent window
     res.send(`
